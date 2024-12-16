@@ -29,6 +29,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(imgui)
 
+# Download JSON library
+FetchContent_Declare(
+    json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.2
+)
+FetchContent_MakeAvailable(json)
+
 # Create ImGui library
 add_library(imgui_impl
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -56,6 +64,7 @@ add_executable(midi2gcode WIN32
     src/main.cpp
     src/midi_parser.cpp
     src/gcode_generator.cpp
+    src/app_settings.cpp
 )
 
 target_include_directories(midi2gcode PRIVATE 
@@ -69,4 +78,5 @@ target_link_libraries(midi2gcode PRIVATE
     imgui_impl
     glfw
     ${OPENGL_LIBRARIES}
+    nlohmann_json::nlohmann_json
 )

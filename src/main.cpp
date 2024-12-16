@@ -1,5 +1,6 @@
 #include "midi_parser.h"
 #include "gcode_generator.h"
+#include "file_dialog.h"
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -12,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <sstream>
 
 // Global state
 static char inputPath[256] = "";
@@ -20,9 +22,22 @@ static bool conversionSuccess = false;
 static std::string statusMessage;
 static float maxSpeed = 200.0f;
 static float stepsPerMm = 80.0f;
+static float acceleration = 1000.0f;
+static float jerk = 10.0f;
+static bool useAcceleration = true;
+static bool useJerk = true;
+static std::string previewText;
+static bool showPreview = false;
+static ImVec2 mainWindowSize(1024, 768);
+static bool darkTheme = true;
 
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
+
+void updatePreview(const std::string& gcode) {
+    previewText = gcode;
+    showPreview = true;
 }
 
 bool convertMidiToGcode() {
@@ -42,8 +57,19 @@ bool convertMidiToGcode() {
     GCodeGenerator generator;
     generator.setMaxSpeed(maxSpeed);
     generator.setStepsPerMm(stepsPerMm);
+    
+    // Set additional parameters
+    if (useAcceleration) {
+        generator.setAcceleration(acceleration);
+    }
+    if (useJerk) {
+        generator.setJerk(jerk);
+    }
 
     std::string gcode = generator.generateGCode(parser.getNotes());
+    
+    // Update preview
+    updatePreview(gcode);
 
     // Write G-code to file
     std::ofstream outFile(outputPath);
@@ -57,6 +83,83 @@ bool convertMidiToGcode() {
 
     statusMessage = "Successfully converted " + std::string(inputPath) + " to " + std::string(outputPath);
     return true;
+}
+
+void renderMainWindow() {
+    ImGui::SetNextWindowSize(mainWindowSize, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
+    
+    ImGui::Begin("MIDI to G-code Converter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+    // File selection
+    ImGui::Text("Input MIDI File:");
+    ImGui::InputText("##input", inputPath, IM_ARRAYSIZE(inputPath), ImGuiInputTextFlags_ReadOnly);
+    ImGui::SameLine();
+    if (ImGui::Button("Browse##1")) {
+        std::string file = FileDialog::OpenFile("MIDI Files\0*.mid\0All Files\0*.*\0");
+        if (!file.empty()) {
+            strcpy_s(inputPath, file.c_str());
+        }
+    }
+
+    ImGui::Text("Output G-code File:");
+    ImGui::InputText("##output", outputPath, IM_ARRAYSIZE(outputPath), ImGuiInputTextFlags_ReadOnly);
+    ImGui::SameLine();
+    if (ImGui::Button("Browse##2")) {
+        std::string file = FileDialog::SaveFile("G-code Files\0*.gcode\0All Files\0*.*\0");
+        if (!file.empty()) {
+            strcpy_s(outputPath, file.c_str());
+        }
+    }
+
+    // Settings
+    ImGui::Separator();
+    ImGui::Text("Printer Settings:");
+    
+    if (ImGui::CollapsingHeader("Basic Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::SliderFloat("Max Speed (mm/s)", &maxSpeed, 50.0f, 500.0f);
+        ImGui::SliderFloat("Steps per mm", &stepsPerMm, 20.0f, 200.0f);
+    }
+    
+    if (ImGui::CollapsingHeader("Advanced Settings")) {
+        ImGui::Checkbox("Use Acceleration", &useAcceleration);
+        if (useAcceleration) {
+            ImGui::SliderFloat("Acceleration (mm/s²)", &acceleration, 100.0f, 3000.0f);
+        }
+        
+        ImGui::Checkbox("Use Jerk", &useJerk);
+        if (useJerk) {
+            ImGui::SliderFloat("Jerk (mm/s)", &jerk, 1.0f, 30.0f);
+        }
+    }
+
+    // Convert button
+    ImGui::Separator();
+    if (ImGui::Button("Convert", ImVec2(120, 30))) {
+        conversionSuccess = convertMidiToGcode();
+    }
+
+    // Status message
+    if (!statusMessage.empty()) {
+        ImGui::Separator();
+        ImGui::TextWrapped("%s", statusMessage.c_str());
+    }
+
+    ImGui::End();
+
+    // G-code Preview Window
+    if (showPreview && !previewText.empty()) {
+        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
+        ImGui::Begin("G-code Preview", &showPreview);
+        ImGui::TextWrapped("Preview of generated G-code:");
+        ImGui::BeginChild("ScrollingRegion", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
+        ImGui::TextUnformatted(previewText.c_str());
+        ImGui::EndChild();
+        if (ImGui::Button("Close")) {
+            showPreview = false;
+        }
+        ImGui::End();
+    }
 }
 
 // Windows entry point
@@ -75,7 +178,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(800, 600, "MIDI to G-code Converter", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(mainWindowSize.x, mainWindowSize.y, 
+                                        "MIDI to G-code Converter", nullptr, nullptr);
     if (window == nullptr)
         return 1;
     glfwMakeContextCurrent(window);
@@ -88,7 +192,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
+    if (darkTheme)
+        ImGui::StyleColorsDark();
+    else
+        ImGui::StyleColorsLight();
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -103,45 +210,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Create the main window
-        ImGui::SetNextWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_FirstUseEver);
-        ImGui::Begin("MIDI to G-code Converter", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-
-        // File selection
-        ImGui::Text("Input MIDI File:");
-        ImGui::InputText("##input", inputPath, IM_ARRAYSIZE(inputPath));
-        ImGui::SameLine();
-        if (ImGui::Button("Browse##1")) {
-            // TODO: Add file dialog
-        }
-
-        ImGui::Text("Output G-code File:");
-        ImGui::InputText("##output", outputPath, IM_ARRAYSIZE(outputPath));
-        ImGui::SameLine();
-        if (ImGui::Button("Browse##2")) {
-            // TODO: Add file dialog
-        }
-
-        // Settings
-        ImGui::Separator();
-        ImGui::Text("Printer Settings:");
-        ImGui::SliderFloat("Max Speed (mm/s)", &maxSpeed, 50.0f, 500.0f);
-        ImGui::SliderFloat("Steps per mm", &stepsPerMm, 20.0f, 200.0f);
-
-        // Convert button
-        ImGui::Separator();
-        if (ImGui::Button("Convert", ImVec2(120, 30))) {
-            conversionSuccess = convertMidiToGcode();
-        }
-
-        // Status message
-        if (!statusMessage.empty()) {
-            ImGui::Separator();
-            ImGui::TextWrapped("%s", statusMessage.c_str());
-        }
-
-        ImGui::End();
+        renderMainWindow();
 
         // Rendering
         ImGui::Render();

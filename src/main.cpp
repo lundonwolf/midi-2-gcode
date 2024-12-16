@@ -5,6 +5,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
@@ -15,6 +16,8 @@
 #include <vector>
 #include <filesystem>
 #include <sstream>
+#include "gcode_visualizer.h"
+#include "midi_player.h"
 
 // Global state
 static char inputPath[256] = "";
@@ -36,6 +39,12 @@ static double newPrinterAccel = 1000.0;
 static double newPrinterJerk = 8.0;
 static double newPrinterSteps = 80.0;
 
+static std::unique_ptr<GCodeVisualizer> m_visualizer;
+static std::unique_ptr<MidiPlayer> m_midiPlayer;
+static bool m_showVisualizerWindow = true;
+static bool m_showMidiPlayerWindow = true;
+static float m_playbackTempo = 1.0f;
+
 static void glfw_error_callback(int error, const char* description) {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
@@ -46,114 +55,43 @@ void updatePreview(const std::string& gcode) {
 }
 
 bool convertMidiToGcode() {
-    if (strlen(inputPath) == 0) {
-        statusMessage = "Please select an input MIDI file.";
+    if (strlen(inputPath) == 0 || strlen(outputPath) == 0) {
+        statusMessage = "Please select both input and output files.";
         return false;
     }
 
-    // Get current printer profile
-    const PrinterProfile& printer = AppSettings::getInstance().getCurrentPrinter();
-    
-    // Parse MIDI file
-    MidiParser parser;
-    if (!parser.loadFile(inputPath)) {
-        statusMessage = "Failed to load MIDI file: " + std::string(inputPath);
+    try {
+        std::vector<MidiNote> notes;
+        MidiParser parser;
+        if (!parser.parse(inputPath, notes)) {
+            statusMessage = "Failed to parse MIDI file.";
+            return false;
+        }
+
+        GCodeGenerator generator;
+        if (m_visualizer) {
+            generator.setVisualizer(m_visualizer.get());
+        }
+
+        generator.generateGCodeToFile(inputPath, outputPath);
+        statusMessage = "Conversion successful!";
+        return true;
+    }
+    catch (const std::exception& e) {
+        statusMessage = "Error: " + std::string(e.what());
         return false;
     }
-
-    // Generate output path if not specified
-    if (strlen(outputPath) == 0) {
-        std::filesystem::path inputFilePath(inputPath);
-        std::string outputDir = AppSettings::getInstance().getOutputDirectory();
-        std::string fileName = inputFilePath.stem().string() + ".gcode";
-        std::filesystem::path outputFilePath = std::filesystem::path(outputDir) / fileName;
-        strcpy_s(outputPath, outputFilePath.string().c_str());
-    }
-
-    // Generate G-code
-    GCodeGenerator generator;
-    generator.setMaxSpeed(printer.maxSpeed);
-    generator.setStepsPerMm(printer.stepsPerMm);
-    generator.setAcceleration(printer.acceleration);
-    generator.setJerk(printer.jerk);
-
-    std::string gcode = generator.generateGCode(parser.getNotes());
-    
-    // Update preview
-    updatePreview(gcode);
-
-    // Create output directory if it doesn't exist
-    std::filesystem::path outputFilePath(outputPath);
-    std::filesystem::create_directories(outputFilePath.parent_path());
-
-    // Write G-code to file
-    std::ofstream outFile(outputPath);
-    if (!outFile) {
-        statusMessage = "Failed to create output file: " + std::string(outputPath);
-        return false;
-    }
-
-    outFile << gcode;
-    outFile.close();
-
-    statusMessage = "Successfully converted " + std::string(inputPath) + " to " + std::string(outputPath);
-    return true;
 }
 
 void renderSettingsWindow() {
     if (!showSettings) return;
 
-    ImGui::SetNextWindowSize(ImVec2(600, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Settings", &showSettings)) {
-        AppSettings& settings = AppSettings::getInstance();
-        
-        // Output directory
-        if (ImGui::CollapsingHeader("Output Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-            char outDir[256];
-            strcpy_s(outDir, settings.getOutputDirectory().c_str());
-            ImGui::InputText("Output Directory", outDir, sizeof(outDir), ImGuiInputTextFlags_ReadOnly);
-            ImGui::SameLine();
-            if (ImGui::Button("Browse##outdir")) {
-                std::string dir = FileDialog::OpenFile("Select Directory\0*.*\0");
-                if (!dir.empty()) {
-                    settings.setOutputDirectory(dir);
-                }
-            }
-        }
-
-        // Printer profiles
-        if (ImGui::CollapsingHeader("Printer Profiles", ImGuiTreeNodeFlags_DefaultOpen)) {
-            const auto& profiles = settings.getPrinterProfiles();
-            static int currentItem = settings.getCurrentPrinter().isCustom ? 
-                profiles.size() - 1 : 0;
-
-            if (ImGui::BeginCombo("Current Printer", profiles[currentItem].name.c_str())) {
-                for (int i = 0; i < profiles.size(); i++) {
-                    const bool isSelected = (currentItem == i);
-                    if (ImGui::Selectable(profiles[i].name.c_str(), isSelected)) {
-                        currentItem = i;
-                        settings.setCurrentPrinter(i);
-                    }
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
-            }
-
-            // Add custom printer
-            if (ImGui::Button("Add Custom Printer")) {
-                ImGui::OpenPopup("Add Custom Printer");
-                memset(newPrinterName, 0, sizeof(newPrinterName));
-                memset(newPrinterManufacturer, 0, sizeof(newPrinterManufacturer));
-            }
-        }
-
-        // Theme settings
         if (ImGui::CollapsingHeader("Appearance")) {
-            bool darkMode = settings.getDarkMode();
+            static bool darkMode = AppSettings::getInstance().getDarkMode();
             if (ImGui::Checkbox("Dark Mode", &darkMode)) {
-                settings.setDarkMode(darkMode);
+                AppSettings::getInstance().setDarkMode(darkMode);
                 if (darkMode)
                     ImGui::StyleColorsDark();
                 else
@@ -161,9 +99,22 @@ void renderSettingsWindow() {
             }
         }
 
-        // Custom printer popup
-        if (ImGui::BeginPopupModal("Add Custom Printer", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::InputText("Printer Name", newPrinterName, sizeof(newPrinterName));
+        if (ImGui::CollapsingHeader("Printer Profiles")) {
+            // List existing profiles
+            auto& profiles = AppSettings::getInstance().getPrinterProfiles();
+            static int selectedProfile = -1;
+
+            for (size_t i = 0; i < profiles.size(); i++) {
+                if (ImGui::Selectable(profiles[i].name.c_str(), selectedProfile == static_cast<int>(i))) {
+                    selectedProfile = static_cast<int>(i);
+                }
+            }
+
+            ImGui::Separator();
+
+            // Add new profile
+            ImGui::Text("Add New Profile");
+            ImGui::InputText("Name", newPrinterName, sizeof(newPrinterName));
             ImGui::InputText("Manufacturer", newPrinterManufacturer, sizeof(newPrinterManufacturer));
             ImGui::InputDouble("Bed Size X (mm)", &newPrinterBedX, 1.0, 10.0);
             ImGui::InputDouble("Bed Size Y (mm)", &newPrinterBedY, 1.0, 10.0);
@@ -172,133 +123,167 @@ void renderSettingsWindow() {
             ImGui::InputDouble("Jerk (mm/s)", &newPrinterJerk, 0.1, 1.0);
             ImGui::InputDouble("Steps per mm", &newPrinterSteps, 1.0, 10.0);
 
-            if (ImGui::Button("Add", ImVec2(120, 0))) {
-                PrinterProfile profile;
-                profile.name = newPrinterName;
-                profile.manufacturer = newPrinterManufacturer;
-                profile.bedSizeX = newPrinterBedX;
-                profile.bedSizeY = newPrinterBedY;
-                profile.maxSpeed = newPrinterMaxSpeed;
-                profile.acceleration = newPrinterAccel;
-                profile.jerk = newPrinterJerk;
-                profile.stepsPerMm = newPrinterSteps;
-                profile.isCustom = true;
-                
-                AppSettings::getInstance().addCustomPrinter(profile);
-                ImGui::CloseCurrentPopup();
+            if (ImGui::Button("Add Profile")) {
+                if (strlen(newPrinterName) > 0) {
+                    PrinterProfile profile;
+                    profile.name = newPrinterName;
+                    profile.manufacturer = newPrinterManufacturer;
+                    profile.bedSizeX = newPrinterBedX;
+                    profile.bedSizeY = newPrinterBedY;
+                    profile.maxSpeed = newPrinterMaxSpeed;
+                    profile.acceleration = newPrinterAccel;
+                    profile.jerk = newPrinterJerk;
+                    profile.stepsPerMm = newPrinterSteps;
+                    profile.isCustom = true;
+
+                    AppSettings::getInstance().addCustomPrinter(profile);
+
+                    // Clear input fields
+                    memset(newPrinterName, 0, sizeof(newPrinterName));
+                    memset(newPrinterManufacturer, 0, sizeof(newPrinterManufacturer));
+                    newPrinterBedX = 220.0;
+                    newPrinterBedY = 220.0;
+                    newPrinterMaxSpeed = 200.0;
+                    newPrinterAccel = 1000.0;
+                    newPrinterJerk = 8.0;
+                    newPrinterSteps = 80.0;
+                }
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel", ImVec2(120, 0))) {
-                ImGui::CloseCurrentPopup();
+
+            // Delete selected profile
+            if (selectedProfile >= 0 && ImGui::Button("Delete Selected Profile")) {
+                AppSettings::getInstance().deleteCustomPrinter(selectedProfile);
+                selectedProfile = -1;
             }
-            ImGui::EndPopup();
         }
+
+        ImGui::End();
     }
-    ImGui::End();
 }
 
 void renderMainWindow() {
-    // Make the window fill the entire viewport
-    ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(viewport->Pos);
-    ImGui::SetNextWindowSize(viewport->Size);
-    
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(mainWindowSize);
     ImGui::Begin("MIDI to G-code Converter", nullptr, 
-                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | 
-                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | 
+        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_MenuBar);
 
-    // Menu bar
-    if (ImGui::BeginMainMenuBar()) {
+    // Menu Bar
+    if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("File")) {
-            if (ImGui::MenuItem("Open MIDI File")) {
-                std::string file = FileDialog::OpenFile("MIDI Files\0*.mid\0All Files\0*.*\0");
-                if (!file.empty()) {
-                    strcpy_s(inputPath, file.c_str());
-                    outputPath[0] = '\0'; // Clear output path to use auto-generated one
-                }
-            }
             if (ImGui::MenuItem("Settings")) {
                 showSettings = true;
             }
+            ImGui::Separator();
             if (ImGui::MenuItem("Exit")) {
-                glfwSetWindowShouldClose(glfwGetCurrentContext(), 1);
+                glfwSetWindowShouldClose(glfwGetCurrentContext(), true);
             }
             ImGui::EndMenu();
         }
-        ImGui::EndMainMenuBar();
+        ImGui::EndMenuBar();
     }
 
-    // Main content
-    float menuBarHeight = ImGui::GetFrameHeight();
-    ImGui::SetCursorPosY(menuBarHeight);
+    // Main content area with columns
+    const float columnWidth = ImGui::GetWindowContentRegionWidth() * 0.5f;
+    
+    // Left column: File selection and conversion
+    ImGui::BeginChild("LeftColumn", ImVec2(columnWidth, 0), true);
+    ImGui::Text("File Selection");
+    ImGui::Separator();
 
-    // Create a child window for scrolling
-    ImGui::BeginChild("ScrollingRegion", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()));
-
-    // File selection
-    ImGui::Text("Input MIDI File:");
-    ImGui::InputText("##input", inputPath, IM_ARRAYSIZE(inputPath), ImGuiInputTextFlags_ReadOnly);
-    ImGui::SameLine();
-    if (ImGui::Button("Browse##1")) {
-        std::string file = FileDialog::OpenFile("MIDI Files\0*.mid\0All Files\0*.*\0");
+    if (ImGui::Button("Select MIDI File")) {
+        std::string file = FileDialog::OpenFile("MIDI Files\0*.mid;*.midi\0All Files\0*.*\0");
         if (!file.empty()) {
-            strcpy_s(inputPath, file.c_str());
-            outputPath[0] = '\0'; // Clear output path to use auto-generated one
+            strncpy_s(inputPath, file.c_str(), sizeof(inputPath) - 1);
         }
     }
-
-    ImGui::Text("Output G-code File (optional):");
-    ImGui::InputText("##output", outputPath, IM_ARRAYSIZE(outputPath), ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
-    if (ImGui::Button("Browse##2")) {
+    ImGui::Text(strlen(inputPath) > 0 ? inputPath : "No file selected");
+
+    if (ImGui::Button("Select Output File")) {
         std::string file = FileDialog::SaveFile("G-code Files\0*.gcode\0All Files\0*.*\0");
         if (!file.empty()) {
-            strcpy_s(outputPath, file.c_str());
+            strncpy_s(outputPath, file.c_str(), sizeof(outputPath) - 1);
+        }
+    }
+    ImGui::SameLine();
+    ImGui::Text(strlen(outputPath) > 0 ? outputPath : "No file selected");
+
+    // Convert Button
+    if (ImGui::Button("Convert")) {
+        if (convertMidiToGcode()) {
+            ImGui::OpenPopup("Conversion Success");
+        } else {
+            ImGui::OpenPopup("Conversion Failed");
         }
     }
 
-    // Current printer info
+    // MIDI Player Section
     ImGui::Separator();
-    const PrinterProfile& currentPrinter = AppSettings::getInstance().getCurrentPrinter();
-    ImGui::Text("Current Printer: %s by %s", 
-                currentPrinter.name.c_str(), 
-                currentPrinter.manufacturer.c_str());
-    if (ImGui::Button("Change Printer Settings")) {
-        showSettings = true;
-    }
-
-    // Convert button
+    ImGui::Text("MIDI Player");
     ImGui::Separator();
-    if (ImGui::Button("Convert", ImVec2(120, 30))) {
-        conversionSuccess = convertMidiToGcode();
+    
+    // Add MIDI player controls here
+    if (strlen(inputPath) > 0) {
+        if (ImGui::Button("Play")) {
+            // Add play functionality
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Stop")) {
+            // Add stop functionality
+        }
     }
-
-    // Status message
-    if (!statusMessage.empty()) {
-        ImGui::Separator();
-        ImGui::TextWrapped("%s", statusMessage.c_str());
-    }
-
+    
     ImGui::EndChild();
 
-    ImGui::End();
+    // Right column: G-code Visualizer
+    ImGui::SameLine();
+    ImGui::BeginChild("RightColumn", ImVec2(0, 0), true);
+    ImGui::Text("G-code Visualizer");
+    ImGui::Separator();
 
-    // Settings window
-    renderSettingsWindow();
-
-    // G-code Preview Window
-    if (showPreview && !previewText.empty()) {
-        ImGui::SetNextWindowSize(ImVec2(500, 400), ImGuiCond_FirstUseEver);
-        ImGui::Begin("G-code Preview", &showPreview);
-        ImGui::TextWrapped("Preview of generated G-code:");
-        ImGui::BeginChild("ScrollingRegion", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
-        ImGui::TextUnformatted(previewText.c_str());
+    // Add G-code visualization here
+    if (strlen(outputPath) > 0) {
+        // Render the G-code preview
+        ImGui::BeginChild("GCodeView", ImVec2(0, -30), true);
+        // Add visualization rendering here
         ImGui::EndChild();
-        if (ImGui::Button("Close")) {
-            showPreview = false;
+
+        // Controls below visualization
+        if (ImGui::Button("Reset View")) {
+            // Add reset view functionality
         }
-        ImGui::End();
+        ImGui::SameLine();
+        if (ImGui::Button("Load G-code")) {
+            // Add load G-code functionality
+        }
+    } else {
+        ImGui::Text("Convert a MIDI file to see the G-code preview");
     }
+    
+    ImGui::EndChild();
+
+    // Conversion result popups
+    if (ImGui::BeginPopupModal("Conversion Success", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("MIDI file converted successfully!");
+        if (ImGui::Button("OK")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    if (ImGui::BeginPopupModal("Conversion Failed", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Failed to convert MIDI file!");
+        if (ImGui::Button("OK")) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
+
+    // Render settings window if open
+    renderSettingsWindow();
+    
+    ImGui::End();
 }
 
 // Windows entry point
@@ -325,6 +310,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
+    // Initialize GLAD
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cerr << "Failed to initialize GLAD" << std::endl;
+        return 1;
+    }
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -340,6 +331,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
+
+    m_visualizer = std::make_unique<GCodeVisualizer>();
+    m_midiPlayer = std::make_unique<MidiPlayer>();
+    if (!m_midiPlayer->initialize()) {
+        std::cerr << "Failed to initialize MIDI playback system" << std::endl;
+    }
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {

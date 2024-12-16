@@ -1,50 +1,30 @@
 #include "gcode_generator.h"
 #include <sstream>
 #include <cmath>
+#include <fstream>
 #include <algorithm>
+#include <iomanip>
 
-GCodeGenerator::GCodeGenerator() 
-    : maxSpeed(200.0)    // Default 200mm/s
+#define M_PI 3.14159265358979323846
+
+GCodeGenerator::GCodeGenerator()
+    : maxSpeed(100.0)   // Default 100mm/s
     , stepsPerMm(80.0)   // Default 80 steps/mm
     , acceleration(1000.0) // Default 1000mm/s²
     , jerk(10.0)         // Default 10mm/s
+    , m_visualizer(nullptr)
+    , bedSizeX(220.0)    // Default bed size
+    , bedSizeY(220.0)
 {}
 
 double GCodeGenerator::noteToFreq(uint8_t note) {
-    // A4 = 69, 440Hz
+    // A4 = 440Hz = MIDI note 69
     return 440.0 * std::pow(2.0, (note - 69.0) / 12.0);
 }
 
-double GCodeGenerator::freqToSpeed(double frequency) {
-    // Convert frequency to motor speed
-    // This is a simplified conversion - you might want to adjust this
-    // based on your specific printer's characteristics
-    return std::min(maxSpeed, frequency / 10.0);
-}
-
-std::string GCodeGenerator::generateAccelCommand(double startSpeed, double endSpeed, double distance) {
-    std::stringstream gcode;
-    
-    // Calculate time needed for acceleration
-    double speedDiff = endSpeed - startSpeed;
-    double accelTime = std::abs(speedDiff) / acceleration;
-    double accelDist = 0.5 * acceleration * accelTime * accelTime;
-    
-    if (accelDist > distance) {
-        // Adjust acceleration to fit the distance
-        acceleration = (speedDiff * speedDiff) / (2.0 * distance);
-        accelTime = std::abs(speedDiff) / acceleration;
-    }
-    
-    // Generate acceleration command
-    gcode << "M204 A" << acceleration << " ; Set acceleration\n";
-    gcode << "M205 X" << jerk << " ; Set jerk\n";
-    gcode << "G1 F" << static_cast<int>(endSpeed * 60) << " ; Set target speed\n";
-    
-    return gcode.str();
-}
-
 std::string GCodeGenerator::generateGCode(const std::vector<MidiNote>& notes) {
+    if (notes.empty()) return "";
+
     std::stringstream gcode;
     
     // Initial setup
@@ -61,52 +41,89 @@ std::string GCodeGenerator::generateGCode(const std::vector<MidiNote>& notes) {
     // Home all axes
     gcode << "G28 ; Home all axes\n\n";
 
-    double currentX = 0.0;
-    double currentTime = 0.0;
-    double currentSpeed = 0.0;
+    // Move to starting position
+    gcode << "G1 Z5 F3000 ; Lift Z\n";
+    gcode << "G1 X" << (bedSizeX/2) << " Y" << (bedSizeY/2) << " F3000 ; Move to center\n";
+    gcode << "G1 Z0.3 F3000 ; Lower Z to starting height\n\n";
 
+    // Calculate time scale to fit the piece into a reasonable duration
+    double totalDuration = 0;
     for (const auto& note : notes) {
-        // Wait if there's a gap
-        if (note.timeOn > currentTime) {
-            double waitTime = note.timeOn - currentTime;
-            gcode << "G4 P" << static_cast<int>(waitTime * 1000) << " ; Pause for " << waitTime << " seconds\n";
-        }
-
-        // Calculate movement parameters
-        double frequency = noteToFreq(note.note);
-        double targetSpeed = freqToSpeed(frequency);
-        double duration = note.timeOff - note.timeOn;
-        double distance = targetSpeed * duration;
-
-        // Ensure we stay within printer bounds by moving back and forth
-        if (currentX + distance > 200.0) { // Assuming 200mm bed size
-            currentX = 0.0;
-            gcode << generateAccelCommand(currentSpeed, maxSpeed, 200.0);
-            gcode << "G0 X0 F" << static_cast<int>(maxSpeed * 60) << " ; Return to start\n";
-            currentSpeed = 0.0;
-        }
-
-        // Generate acceleration commands if needed
-        if (std::abs(targetSpeed - currentSpeed) > jerk) {
-            gcode << generateAccelCommand(currentSpeed, targetSpeed, distance);
-        }
-
-        // Generate movement command
-        gcode << "G1 X" << currentX + distance 
-              << " F" << static_cast<int>(targetSpeed * 60)
-              << " ; Play note " << (int)note.note 
-              << " at " << frequency << "Hz\n";
-
-        currentX += distance;
-        currentTime = note.timeOff;
-        currentSpeed = targetSpeed;
+        totalDuration = std::max(totalDuration, note.timestamp + note.duration);
     }
-
-    // Return to home position
-    gcode << "\n; Return to starting position\n"
-          << generateAccelCommand(currentSpeed, maxSpeed, currentX)
-          << "G0 X0 F" << static_cast<int>(maxSpeed * 60) << " ; Return to start\n"
+    
+    const double timeScale = 60.0 / totalDuration; // Scale to roughly 1 minute
+    const double baseRadius = std::min(bedSizeX, bedSizeY) * 0.4; // 40% of bed size
+    
+    // Track current position
+    double currentX = bedSizeX/2;
+    double currentY = bedSizeY/2;
+    double currentZ = 0.3;
+    
+    // Process each note
+    for (const auto& note : notes) {
+        // Map note properties to movement
+        double freq = noteToFreq(note.note);
+        double angle = (note.timestamp * timeScale * 360.0) / 60.0; // Convert time to degrees
+        double radius = baseRadius * (1.0 + (note.velocity / 127.0) * 0.5); // Vary radius by velocity
+        
+        // Calculate target position using polar coordinates
+        double angleRad = angle * M_PI / 180.0;
+        double targetX = (bedSizeX/2) + radius * cos(angleRad);
+        double targetY = (bedSizeY/2) + radius * sin(angleRad);
+        
+        // Map frequency to Z height (higher notes = higher Z)
+        double targetZ = 0.3 + (note.note - 21) * 0.1; // 0.1mm per semitone, starting from A0 (21)
+        
+        // Calculate movement speed based on note properties
+        double speed = std::min(maxSpeed, freq * 0.2); // Scale frequency to reasonable speed
+        
+        // Move to note position
+        gcode << "G1"
+              << " X" << std::fixed << std::setprecision(3) << targetX
+              << " Y" << std::fixed << std::setprecision(3) << targetY
+              << " Z" << std::fixed << std::setprecision(3) << targetZ
+              << " F" << (speed * 60) << " ; Note " << (int)note.note 
+              << " freq=" << std::fixed << std::setprecision(1) << freq << "Hz\n";
+        
+        // Optional: add small pause for note duration
+        if (note.duration > 0.1) { // Only pause for notes longer than 0.1s
+            gcode << "G4 P" << (note.duration * 1000 * 0.5) << " ; Hold note\n";
+        }
+        
+        currentX = targetX;
+        currentY = targetY;
+        currentZ = targetZ;
+    }
+    
+    // Return to center and lift
+    gcode << "\n; Finish up\n"
+          << "G1 Z5 F3000 ; Lift Z\n"
+          << "G1 X" << (bedSizeX/2) << " Y" << (bedSizeY/2) << " F3000 ; Return to center\n"
           << "M84 ; Disable motors\n";
 
     return gcode.str();
+}
+
+void GCodeGenerator::generateGCodeToFile(const std::string& inputFile, const std::string& outputFile) {
+    MidiParser parser;
+    std::vector<MidiNote> notes;
+    
+    if (!parser.parse(inputFile, notes)) {
+        throw std::runtime_error("Failed to parse MIDI file");
+    }
+    
+    std::string gcode = generateGCode(notes);
+    
+    std::ofstream outFile(outputFile);
+    if (!outFile) {
+        throw std::runtime_error("Failed to open output file");
+    }
+    
+    outFile << gcode;
+    outFile.close();
+    
+    if (m_visualizer) {
+        m_visualizer->loadGCode(gcode);
+    }
 }

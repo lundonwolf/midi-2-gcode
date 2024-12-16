@@ -1,41 +1,172 @@
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(181,75): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of 
-data [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(181,57): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of 
-data [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
-C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xutility(4709,18): warning C4244: '=': 
-conversion from 'wchar_t' to 'char', possible loss of data [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
-  (compiling source file '../src/main.cpp')
-      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xutility(4709,18):
-      the template instantiation context (the oldest one first) is
-          C:\Users\iglenn\midi-2-gcode\include\file_dialog.h(27,43):
-          see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>:: 
-  basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled  
-          with
-          [
-              _Elem=wchar_t,
-              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
-              _Alloc=std::allocator<char>
-          ]
-              C:\Users\iglenn\midi-2-gcode\include\file_dialog.h(27,43):
-              see the first reference to 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string' in ' 
-  FileDialog::OpenFile'
-          C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xstring(793,17):
-          see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<cha 
-  r>>::_Construct_from_iter<wchar_t*,wchar_t*,_Size_type>(_Iter,const _Sent,_Size)' being compiled
-          with
-          [
-              _Size_type=unsigned __int64,
-              _Iter=wchar_t *,
-              _Sent=wchar_t *,
-              _Size=unsigned __int64
-          ]
-          C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xstring(949,18):
-          see reference to function template instantiation '_OutIt *std::_Copy_n_unchecked4<wchar_t*,_Size,char*>(_InIt,_SizeTy,_ 
-  OutIt)' being compiled
-          with
-          [
-              _OutIt=char *,
-              _Size=unsigned __int64,
-              _InIt=wchar_t *,
-              _SizeTy=unsigned __int64
-          ]
+PS C:\Users\iglenn\midi-2-gcode\build> cmake ..
+-- Building for: Visual Studio 17 2022
+-- Selecting Windows SDK version 10.0.22621.0 to target Windows 10.0.26120.
+-- The C compiler identification is MSVC 19.42.34435.0
+-- The CXX compiler identification is MSVC 19.42.34435.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.42.34433/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenGL: opengl32
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - not found
+-- Found Threads: TRUE
+-- Using Win32 for window creation
+CMake Deprecation Warning at build/_deps/json-src/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Using the multi-header code from C:/Users/iglenn/midi-2-gcode/build/_deps/json-src/include/
+CMake Deprecation Warning at build/_deps/glm-src/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+CMake Deprecation Warning at build/_deps/glm-src/CMakeLists.txt:2 (cmake_policy):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- PortMidi Library name: 
+-- Build type: 
+-- Library Type:
+-- Compiler flags:
+-- Compile definitions:
+-- Compile options:
+-- Compiler cxx debug flags: /MDd /Zi /Ob0 /Od /RTC1
+-- Compiler cxx release flags: /MD /O2 /Ob2 /DNDEBUG
+-- Compiler cxx min size flags: /MD /O1 /Ob1 /DNDEBUG
+-- Compiler cxx flags: /DWIN32 /D_WINDOWS /W3 /GR /EHsc
+CMake Deprecation Warning at build/_deps/glad-src/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Found Python: C:/Program Files/WindowsApps/PythonSoftwareFoundation.Python.3.13_3.13.496.0_x64__qbz5n2kfra8p0/python3.13.exe (found version "3.13.1") found components: Interpreter
+-- Configuring done (41.4s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Users/iglenn/midi-2-gcode/build
+PS C:\Users\iglenn\midi-2-gcode\build> cmake --build . --config Release
+MSBuild version 17.12.12+1cce77968 for .NET Framework
+
+  1>Checking Build System
+  Generating GLAD
+  [12/16/2024 07:23:50][INFO    ][glad          ]: downloading latest 'gl' specification
+  [12/16/2024 07:23:50][INFO    ][glad.opener   ]: opening: 'https://raw.githubusercontent.com/KhronosGroup/OpenGL-Registry/main/xml/gl.xml'
+  [12/16/2024 07:23:50][INFO    ][glad          ]: generating 'gl' bindings: {'gl': None}
+  [12/16/2024 07:23:50][INFO    ][glad.opener   ]: saving: 'https://raw.githubusercontent.com/KhronosGroup/EGL-Registry/main/api/KHR/khrplatform.h'
+   to 'C:\Users\iglenn\midi-2-gcode\build\_deps\glad-build\include\KHR\khrplatform.h'
+  [12/16/2024 07:23:50][INFO    ][glad          ]: generating 'gl' bindings - done
+  Building Custom Rule C:/Users/iglenn/midi-2-gcode/build/_deps/glad-src/CMakeLists.txt
+  Building Custom Rule C:/Users/iglenn/midi-2-gcode/build/_deps/glad-src/CMakeLists.txt
+  glad.c
+  glad.vcxproj -> C:\Users\iglenn\midi-2-gcode\build\_deps\glad-build\Release\glad.lib
+  Building Custom Rule C:/Users/iglenn/midi-2-gcode/build/_deps/glfw-src/src/CMakeLists.txt
+  context.c
+  init.c
+  input.c
+  monitor.c
+  vulkan.c
+  window.c
+  win32_init.c
+  win32_joystick.c
+  win32_monitor.c
+  win32_time.c
+  win32_thread.c
+  win32_window.c
+  wgl_context.c
+  egl_context.c
+  osmesa_context.c
+  Generating Code...
+  glfw.vcxproj -> C:\Users\iglenn\midi-2-gcode\build\_deps\glfw-build\src\Release\glfw3.lib
+  Building Custom Rule C:/Users/iglenn/midi-2-gcode/CMakeLists.txt
+  imgui.cpp
+  imgui_demo.cpp
+  imgui_draw.cpp
+  imgui_tables.cpp
+  imgui_widgets.cpp
+  imgui_impl_glfw.cpp
+  imgui_impl_opengl3.cpp
+  Generating Code...
+  imgui_impl.vcxproj -> C:\Users\iglenn\midi-2-gcode\build\Release\imgui_impl.lib
+  Building Custom Rule C:/Users/iglenn/midi-2-gcode/build/_deps/portmidi-src/pm_common/CMakeLists.txt
+  portmidi.c
+  pmutil.c
+  porttime.c
+  ptwinmm.c
+  pmwin.c
+  pmwinmm.c
+  Generating Code...
+  portmidi.vcxproj -> C:\Users\iglenn\midi-2-gcode\build\_deps\portmidi-build\Release\portmidi.lib
+  Building Custom Rule C:/Users/iglenn/midi-2-gcode/CMakeLists.txt
+  main.cpp
+  midi_parser.cpp
+C:\Users\iglenn\midi-2-gcode\src\main.cpp(138,48): error C2039: 'addPrinterProfile': is not a member of 'AppSettings' [C:\Users\iglenn\midi-2-gcode
+\build\midi2gcode.vcxproj]
+      C:\Users\iglenn\midi-2-gcode\include\app_settings.h(21,7):
+      see declaration of 'AppSettings'
+
+C:\Users\iglenn\midi-2-gcode\src\main.cpp(154,44): error C2039: 'removePrinterProfile': is not a member of 'AppSettings' [C:\Users\iglenn\midi-2-gc 
+ode\build\midi2gcode.vcxproj]
+      C:\Users\iglenn\midi-2-gcode\include\app_settings.h(21,7):
+      see declaration of 'AppSettings'
+
+  gcode_generator.cpp
+  app_settings.cpp
+C:\Users\iglenn\midi-2-gcode\src\app_settings.cpp(89,36): warning C4101: 'e': unreferenced local variable [C:\Users\iglenn\midi-2-gcode\build\midi2
+gcode.vcxproj]
+C:\Users\iglenn\midi-2-gcode\src\app_settings.cpp(121,36): warning C4101: 'e': unreferenced local variable [C:\Users\iglenn\midi-2-gcode\build\midi
+2gcode.vcxproj]
+  gcode_visualizer.cpp
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(61,14): error C2039: 'cerr': is not a member of 'std' [C:\Users\iglenn\midi-2-gcode\build\mid
+i2gcode.vcxproj]
+      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\regex(56,1):
+      see declaration of 'std'
+
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(61,14): error C2065: 'cerr': undeclared identifier [C:\Users\iglenn\midi-2-gcode\build\midi2g 
+code.vcxproj]
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(74,14): error C2039: 'cerr': is not a member of 'std' [C:\Users\iglenn\midi-2-gcode\build\mid 
+i2gcode.vcxproj]
+      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\regex(56,1):
+      see declaration of 'std'
+
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(74,14): error C2065: 'cerr': undeclared identifier [C:\Users\iglenn\midi-2-gcode\build\midi2g 
+code.vcxproj]
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(88,14): error C2039: 'cerr': is not a member of 'std' [C:\Users\iglenn\midi-2-gcode\build\mid 
+i2gcode.vcxproj]
+      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\regex(56,1):
+      see declaration of 'std'
+
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(88,14): error C2065: 'cerr': undeclared identifier [C:\Users\iglenn\midi-2-gcode\build\midi2g 
+code.vcxproj]
+C:\Users\iglenn\midi-2-gcode\src\gcode_visualizer.cpp(194,46): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of d 
+ata [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
+  midi_player.cpp
+  Generating Code...

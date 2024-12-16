@@ -1,6 +1,8 @@
 #include "app_settings.h"
-#include <filesystem>
 #include <fstream>
+#include <shlobj.h>
+#include <filesystem>
+#include <iostream>
 
 AppSettings::AppSettings() 
     : currentPrinterIndex(0)
@@ -55,6 +57,9 @@ std::string AppSettings::getSettingsPath() const {
 
 void AppSettings::loadSettings() {
     try {
+        std::cout << "Loading settings from: " << getSettingsPath() << std::endl;
+        std::cout << "Number of default profiles: " << printerProfiles.size() << std::endl;
+        
         std::ifstream file(getSettingsPath());
         if (file.is_open()) {
             nlohmann::json j;
@@ -62,12 +67,14 @@ void AppSettings::loadSettings() {
             
             if (j.contains("outputDirectory")) {
                 outputDirectory = j["outputDirectory"];
+                std::cout << "Loaded output directory: " << outputDirectory << std::endl;
             }
             if (j.contains("darkMode")) {
                 darkMode = j["darkMode"];
             }
             if (j.contains("currentPrinterIndex")) {
                 currentPrinterIndex = j["currentPrinterIndex"];
+                std::cout << "Current printer index: " << currentPrinterIndex << std::endl;
             }
             if (j.contains("customPrinters")) {
                 for (const auto& printer : j["customPrinters"]) {
@@ -82,11 +89,15 @@ void AppSettings::loadSettings() {
                     profile.stepsPerMm = printer["stepsPerMm"];
                     profile.isCustom = true;
                     printerProfiles.push_back(profile);
+                    std::cout << "Loaded custom printer: " << profile.name << std::endl;
                 }
             }
+        } else {
+            std::cout << "Settings file not found, using defaults" << std::endl;
         }
+        std::cout << "Total number of profiles after loading: " << printerProfiles.size() << std::endl;
     } catch (const std::exception& e) {
-        // If loading fails, we'll use the defaults
+        std::cout << "Error loading settings: " << e.what() << std::endl;
     }
 }
 

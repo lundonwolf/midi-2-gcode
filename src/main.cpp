@@ -178,7 +178,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
     // Create window with graphics context
-    GLFWwindow* window = glfwCreateWindow(mainWindowSize.x, mainWindowSize.y, 
+    GLFWwindow* window = glfwCreateWindow(static_cast<int>(mainWindowSize.x), 
+                                        static_cast<int>(mainWindowSize.y), 
                                         "MIDI to G-code Converter", nullptr, nullptr);
     if (window == nullptr)
         return 1;

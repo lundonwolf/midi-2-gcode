@@ -23,8 +23,12 @@ public:
                     PWSTR pszFilePath;
                     hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
                     if (SUCCEEDED(hr)) {
-                        std::wstring ws(pszFilePath);
-                        std::string result(ws.begin(), ws.end());
+                        // Convert wide string to UTF-8
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, pszFilePath, -1, NULL, 0, NULL, NULL);
+                        std::string result(size_needed, 0);
+                        WideCharToMultiByte(CP_UTF8, 0, pszFilePath, -1, &result[0], size_needed, NULL, NULL);
+                        result.resize(strlen(result.c_str())); // Remove extra null terminator
+                        
                         CoTaskMemFree(pszFilePath);
                         pItem->Release();
                         pFileOpen->Release();
@@ -58,8 +62,12 @@ public:
                     PWSTR pszFilePath;
                     hr = pItem->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
                     if (SUCCEEDED(hr)) {
-                        std::wstring ws(pszFilePath);
-                        std::string result(ws.begin(), ws.end());
+                        // Convert wide string to UTF-8
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, pszFilePath, -1, NULL, 0, NULL, NULL);
+                        std::string result(size_needed, 0);
+                        WideCharToMultiByte(CP_UTF8, 0, pszFilePath, -1, &result[0], size_needed, NULL, NULL);
+                        result.resize(strlen(result.c_str())); // Remove extra null terminator
+
                         CoTaskMemFree(pszFilePath);
                         pItem->Release();
                         pFileSave->Release();

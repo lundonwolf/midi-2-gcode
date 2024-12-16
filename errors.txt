@@ -1,14 +1,41 @@
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,12): error C2146: syntax error: missing ';' before identifier 'WinMain' [C:\Users\ig
-lenn\midi-2-gcode\build\midi2gcode.vcxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,30): error C2146: syntax error: missing ')' before identifier 'hInstance' [C:\Users\ 
-iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,20): error C4430: missing type specifier - int assumed. Note: C++ does not support d 
-efault-int [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,30): error C2146: syntax error: missing ';' before identifier 'hInstance' [C:\Users\ 
-iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,95): error C2059: syntax error: ')' [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.v 
-cxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,97): error C2143: syntax error: missing ';' before '{' [C:\Users\iglenn\midi-2-gcode 
-\build\midi2gcode.vcxproj]
-C:\Users\iglenn\midi-2-gcode\src\main.cpp(59,97): error C2447: '{': missing function header (old-style formal list?) [C:\Users\ig 
-lenn\midi-2-gcode\build\midi2gcode.vcxproj]
+C:\Users\iglenn\midi-2-gcode\src\main.cpp(181,75): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of 
+data [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
+C:\Users\iglenn\midi-2-gcode\src\main.cpp(181,57): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of 
+data [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
+C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xutility(4709,18): warning C4244: '=': 
+conversion from 'wchar_t' to 'char', possible loss of data [C:\Users\iglenn\midi-2-gcode\build\midi2gcode.vcxproj]
+  (compiling source file '../src/main.cpp')
+      C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xutility(4709,18):
+      the template instantiation context (the oldest one first) is
+          C:\Users\iglenn\midi-2-gcode\include\file_dialog.h(27,43):
+          see reference to function template instantiation 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>:: 
+  basic_string<std::_String_iterator<std::_String_val<std::_Simple_types<_Elem>>>,0>(_Iter,_Iter,const _Alloc &)' being compiled  
+          with
+          [
+              _Elem=wchar_t,
+              _Iter=std::_String_iterator<std::_String_val<std::_Simple_types<wchar_t>>>,
+              _Alloc=std::allocator<char>
+          ]
+              C:\Users\iglenn\midi-2-gcode\include\file_dialog.h(27,43):
+              see the first reference to 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>::basic_string' in ' 
+  FileDialog::OpenFile'
+          C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xstring(793,17):
+          see reference to function template instantiation 'void std::basic_string<char,std::char_traits<char>,std::allocator<cha 
+  r>>::_Construct_from_iter<wchar_t*,wchar_t*,_Size_type>(_Iter,const _Sent,_Size)' being compiled
+          with
+          [
+              _Size_type=unsigned __int64,
+              _Iter=wchar_t *,
+              _Sent=wchar_t *,
+              _Size=unsigned __int64
+          ]
+          C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.42.34433\include\xstring(949,18):
+          see reference to function template instantiation '_OutIt *std::_Copy_n_unchecked4<wchar_t*,_Size,char*>(_InIt,_SizeTy,_ 
+  OutIt)' being compiled
+          with
+          [
+              _OutIt=char *,
+              _Size=unsigned __int64,
+              _InIt=wchar_t *,
+              _SizeTy=unsigned __int64
+          ]
